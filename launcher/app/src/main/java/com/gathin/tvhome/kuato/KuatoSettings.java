@@ -10,21 +10,17 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
-/** Settings from kuato.json next to config.json. Missing file or bad JSON means everything is off. */
+/**
+ * Settings from kuato.json next to config.json. Missing file or bad JSON means everything is off.
+ * A future Plex token must live in internal storage, never in kuato.json (external storage is readable by other apps).
+ */
 public final class KuatoSettings {
-    public final String plexUrl;
-    public final String plexToken;
     public final double lat, lon;
-    public final boolean streams, recent, weather;
+    public final boolean weather;
 
-    private KuatoSettings(String url, String token, double lat, double lon,
-                          boolean streams, boolean recent, boolean weather) {
-        this.plexUrl = url;
-        this.plexToken = token;
+    private KuatoSettings(double lat, double lon, boolean weather) {
         this.lat = lat;
         this.lon = lon;
-        this.streams = streams;
-        this.recent = recent;
         this.weather = weather;
     }
 
@@ -36,12 +32,8 @@ public final class KuatoSettings {
         } catch (Exception e) {
             o = new JSONObject();
         }
-        String url = o.optString("plex_url", "");
-        while (url.endsWith("/")) url = url.substring(0, url.length() - 1);
         boolean hasLoc = o.has("lat") && o.has("lon");
-        return new KuatoSettings(url, o.optString("plex_token", ""),
-                o.optDouble("lat", 0), o.optDouble("lon", 0),
-                o.optBoolean("streams", true), o.optBoolean("recent", true),
+        return new KuatoSettings(o.optDouble("lat", 0), o.optDouble("lon", 0),
                 hasLoc && o.optBoolean("weather", true));
     }
 
@@ -55,9 +47,5 @@ public final class KuatoSettings {
         } catch (Exception e) {
             return parse("{}");
         }
-    }
-
-    public boolean plexReady() {
-        return !plexUrl.isEmpty() && !plexToken.isEmpty();
     }
 }

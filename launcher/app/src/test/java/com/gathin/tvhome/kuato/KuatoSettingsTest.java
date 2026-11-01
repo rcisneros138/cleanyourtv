@@ -7,29 +7,16 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 public class KuatoSettingsTest {
-    @Test public void fullConfig() {
-        KuatoSettings s = KuatoSettings.parse(
-                "{\"plex_url\":\"http://192.168.86.48:32400/\",\"plex_token\":\"t\",\"lat\":41.88,\"lon\":-87.63}");
-        assertEquals("http://192.168.86.48:32400", s.plexUrl);
-        assertEquals("t", s.plexToken);
-        assertTrue(s.streams && s.recent && s.weather);
-        assertTrue(s.plexReady());
+    @Test public void locationEnablesWeather() {
+        KuatoSettings s = KuatoSettings.parse("{\"lat\":41.88,\"lon\":-87.63}");
+        assertTrue(s.weather);
         assertEquals(41.88, s.lat, 0.0001);
         assertEquals(-87.63, s.lon, 0.0001);
     }
 
     @Test public void badOrEmptyIsOff() {
         for (String j : new String[] {"not json", "{}", null}) {
-            KuatoSettings s = KuatoSettings.parse(j);
-            assertFalse(s.plexReady());
-            assertFalse(s.weather);
+            assertFalse(KuatoSettings.parse(j).weather);
         }
-    }
-
-    @Test public void featureFlagHonoured() {
-        KuatoSettings s = KuatoSettings.parse(
-                "{\"plex_url\":\"u\",\"plex_token\":\"t\",\"lat\":1,\"lon\":2,\"streams\":false}");
-        assertFalse(s.streams);
-        assertTrue(s.recent);
     }
 }
