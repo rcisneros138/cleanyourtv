@@ -52,4 +52,23 @@ public class KuatoCacheTest {
         c.put("weather", "new", 10);
         assertEquals("new", c.get("weather", 10, 5000));
     }
+
+    @Test public void futureStampIsStale() {
+        KuatoCache c = new KuatoCache(tmp.getRoot());
+        c.put("weather", "x", 10_000);
+        assertEquals(Long.MAX_VALUE, c.ageMs("weather", 5_000));
+        assertNull(c.get("weather", 5_000, Long.MAX_VALUE));
+    }
+
+    @Test public void exactBoundaryIsFresh() {
+        KuatoCache c = new KuatoCache(tmp.getRoot());
+        c.put("weather", "x", 1000);
+        assertEquals("x", c.get("weather", 6000, 5000));
+    }
+
+    @Test public void nonNumericFirstLineIsNull() throws Exception {
+        KuatoCache c = new KuatoCache(tmp.getRoot());
+        try (FileWriter w = new FileWriter(new File(tmp.getRoot(), "weather"))) { w.write("abc\ntext"); }
+        assertNull(c.get("weather", 0, Long.MAX_VALUE));
+    }
 }

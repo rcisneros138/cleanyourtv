@@ -26,12 +26,16 @@ final class KuatoCache {
 
     String get(String key, long nowMs, long maxAgeMs) {
         String[] r = read(key);
-        return r != null && nowMs - Long.parseLong(r[0]) <= maxAgeMs ? r[1] : null;
+        if (r == null) return null;
+        long age = nowMs - Long.parseLong(r[0]);
+        return age >= 0 && age <= maxAgeMs ? r[1] : null; // age < 0: clock went backwards
     }
 
     long ageMs(String key, long nowMs) {
         String[] r = read(key);
-        return r == null ? Long.MAX_VALUE : nowMs - Long.parseLong(r[0]);
+        if (r == null) return Long.MAX_VALUE;
+        long age = nowMs - Long.parseLong(r[0]);
+        return age < 0 ? Long.MAX_VALUE : age;
     }
 
     /** {writeTime, text} or null on any problem. */
