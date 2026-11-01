@@ -1,8 +1,8 @@
 package com.gathin.tvhome.kuato;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 
 import org.junit.Test;
 
@@ -13,10 +13,11 @@ public class KuatoHomeTest {
     }
 
     @Test public void visibility() {
-        assertTrue(KuatoHome.showWeather(w(54, 61, 45, 3), false));
-        assertFalse(KuatoHome.showWeather(w(54, 61, 45, 3), true));
-        assertFalse(KuatoHome.showWeather(null, false));
-        assertFalse(KuatoHome.showWeather(null, true));
+        Weather cached = w(50, 60, 40, 0), fresh = w(54, 61, 45, 3);
+        assertSame(fresh, KuatoHome.toShow(fresh, cached));
+        assertSame(fresh, KuatoHome.toShow(fresh, null));
+        assertSame(cached, KuatoHome.toShow(null, cached));  // refresh failed, valid cache: keep showing it
+        assertNull(KuatoHome.toShow(null, null));            // refresh failed, no cache under 24 h: hidden
     }
 
     @Test public void conditions() {

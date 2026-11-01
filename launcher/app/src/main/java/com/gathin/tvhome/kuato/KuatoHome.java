@@ -21,7 +21,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * The weather line under Home's date: "54° · high 61, low 45" with an icon. Refreshes every 30 min while Home is
- * resumed, cache first; hidden when there is nothing under 24 h old or the last fetch failed. Network and file work
+ * resumed, cache first; a failed refresh keeps a cached reading under 24 h old, and with none the line is hidden.
+ * Network and file work
  * run on one background thread; any RuntimeException turns the line off until the process restarts.
  */
 public final class KuatoHome {
@@ -88,7 +89,7 @@ public final class KuatoHome {
         if (g != gen || disabled) return;
         KuatoSettings s = KuatoSettings.load(ctx);
         if (!s.weather) {
-            post(g, null, false);   // settings are read again on the next resume
+            post(g, null);   // settings are read again on the next resume
             return;
         }
         if (cache == null) cache = new KuatoCache(new File(ctx.getCacheDir(), "kuato"));
@@ -96,40 +97,41 @@ public final class KuatoHome {
         Weather w = Weather.parse(cache.get(KEY, now, MAX_AGE_MS));
         long delay = KuatoSchedule.nextDelayMs(cache.ageMs(KEY, now), INTERVAL_MS);
         if (delay > 0) {
-            post(g, w, false);
+            post(g, w);
             schedule(g, delay);
             return;
         }
-        if (w != null) post(g, w, false);   // cache first, then the fresh copy
-        boolean failed = false;
+        if (w != null) post(g, w);   // cache first, then the fresh copy
+        Weather fresh = null;
         try {
             String json = Http.get(Weather.url(s.lat, s.lon), Collections.emptyMap());
-            Weather fresh = Weather.parse(json);
+            fresh = Weather.parse(json);
             if (fresh == null) throw new IOException("bad weather JSON");
             cache.put(KEY, json, System.currentTimeMillis());
-            w = fresh;
         } catch (IOException e) {
-            failed = true;
             Log.w(TAG, "weather fetch failed: " + e);
         }
-        post(g, w, failed);
+        post(g, toShow(fresh, w));
         schedule(g, INTERVAL_MS);
     }
 
     private void schedule(int g, long delayMs) {
-        if (g == gen) next = bg.schedule(() -> guard(() -> tick(g)), delayMs, TimeUnit.MILLISECONDS);
+        if (g != gen) return;
+        ScheduledFuture<?> f = bg.schedule(() -> guard(() -> tick(g)), delayMs, TimeUnit.MILLISECONDS);
+        next = f;
+        if (g != gen) f.cancel(false);   // onPause ran between the check and the assignment and missed it
     }
 
-    private void post(int g, Weather w, boolean failed) {
+    private void post(int g, Weather w) {
         main.post(() -> guard(() -> {
-            if (resumed && g == gen) show(w, failed);
+            if (resumed && g == gen) show(w);
         }));
     }
 
     // ---- main thread -----------------------------------------------------------------------------
 
-    private void show(Weather w, boolean failed) {
-        wanted = showWeather(w, failed);
+    private void show(Weather w) {
+        wanted = w != null;
         if (wanted) {
             // The date's look, read now: Home may have recoloured or resized it (header_white, shamsi_date).
             float px = date.getTextSize();
@@ -192,8 +194,9 @@ public final class KuatoHome {
 
     // ---- pure helpers (JVM tests) ----------------------------------------------------------------
 
-    static boolean showWeather(Weather w, boolean failed) {
-        return w != null && !failed;
+    /** The reading to show: the fresh one, else the cached one (already limited to 24 h); null hides the line. */
+    static Weather toShow(Weather fresh, Weather cached) {
+        return fresh != null ? fresh : cached;
     }
 
     /** WMO weather code to one of: clear, cloudy, rain, snow, storm. Unknown codes are cloudy. */
