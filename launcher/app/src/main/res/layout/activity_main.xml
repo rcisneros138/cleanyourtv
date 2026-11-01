@@ -113,6 +113,9 @@
         android:visibility="gone"
         android:importantForAccessibility="no" />
 
+    <!-- kuato: weather line under the date, placed in code by KuatoHome. -->
+    <include layout="@layout/kuato_home" />
+
     <!-- Top shelf: the focused dock app's name, positioned above the dock in code. -->
     <LinearLayout
         android:id="@+id/hero"
